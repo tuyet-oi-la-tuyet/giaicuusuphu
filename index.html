@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giải Cứu Sư Phụ Algo - Game Tin Học 6</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Quicksand:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            overflow: hidden;
+        }
+        .pixel-font {
+            font-family: 'Press+Start+2P', cursive;
+        }
+        .game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .stage-transition {
+            transition: all 0.5s ease-in-out;
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10,-10% { transform: translate3d(-1px, 0, 0); }
+            20,-20% { transform: translate3d(2px, 0, 0); }
+            30, 50, 70% { transform: translate3d(-4px, 0, 0); }
+            40, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .gem-glow {
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+        .boss-health-bar {
+            height: 20px;
+            background: #450a0a;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #ef4444;
+        }
+        .boss-health-inner {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444, #f87171);
+            transition: width 0.5s ease-out;
+        }
+        .btn-choice {
+            transition: all 0.2s;
+            transform: scale(1);
+        }
+        .btn-choice:hover {
+            transform: scale(1.02);
+            background-color: #334155;
+        }
+        .message-box {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="game-container p-4">
+    <!-- Màn hình bắt đầu -->
+    <div id="start-screen" class="flex flex-col items-center justify-center h-full text-center space-y-8">
+        <h1 class="text-4xl font-bold text-blue-400 mb-4 uppercase tracking-widest">Giải Cứu Sư Phụ Algo</h1>
+        <div class="bg-slate-800 p-6 rounded-2xl border-4 border-blue-500 max-w-lg">
+            <p class="text-lg leading-relaxed">
+                Hỡi các hiệp sĩ! <b>Sư phụ Algo</b> đã bị <b>Quái vật Lộn Xộn</b> bắt cóc vào mê cung dữ liệu. 
+                Hãy vượt qua 3 chặng thử thách để khôi phục trật tự thế giới!
+            </p>
+        </div>
+        <button onclick="startGame()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-10 rounded-full text-2xl shadow-lg transform hover:scale-110 transition">
+            BẮT ĐẦU PHIÊU LƯU!
+        </button>
+    </div>
+
+    <!-- Màn hình chơi Game -->
+    <div id="game-screen" class="hidden flex flex-col h-full">
+        <!-- Header thông tin -->
+        <div class="flex justify-between items-center mb-4 bg-slate-800 p-3 rounded-xl shadow-lg">
+            <div id="stage-info" class="font-bold text-blue-300">CHẶNG 1: CÁNH CỔNG NHẬN BIẾT</div>
+            <div class="flex space-x-2" id="gems-container">
+                <!-- Gems will appear here -->
+            </div>
+        </div>
+
+        <!-- Khu vực Boss (Chỉ hiện ở Chặng 3) -->
+        <div id="boss-area" class="hidden mb-6">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-red-400 font-bold uppercase">Quái vật Lộn Xộn</span>
+                <span id="boss-hp-text" class="text-sm font-bold">HP: 100/100</span>
+            </div>
+            <div class="boss-health-bar">
+                <div id="boss-health-inner" class="boss-health-inner" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Khu vực câu hỏi -->
+        <div class="flex-grow flex flex-col justify-center">
+            <div id="question-card" class="bg-slate-800 p-6 rounded-3xl border-2 border-slate-700 shadow-2xl mb-6">
+                <div id="question-text" class="text-xl font-bold mb-6 leading-snug">Đang tải câu hỏi...</div>
+                <div id="choices-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Choices will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Hộp tin nhắn nhân vật -->
+        <div id="dialog-box" class="bg-slate-900 border-2 border-blue-500 p-4 rounded-xl flex items-start space-x-4 shadow-xl">
+            <div class="w-16 h-16 bg-blue-900 rounded-full flex-shrink-0 border-2 border-blue-400 flex items-center justify-center overflow-hidden" id="char-avatar">
+                <svg viewBox="0 0 24 24" class="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+            <div>
+                <div id="char-name" class="font-bold text-blue-400 text-sm">HIỆP SĨ TIN HỌC</div>
+                <div id="char-text" class="italic text-slate-300">Chúng ta phải thật cẩn thận!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Màn hình chiến thắng -->
+    <div id="win-screen" class="hidden flex flex-col items-center justify-center h-full text-center space-y-6">
+        <div class="text-6xl mb-4">🏆</div>
+        <h2 class="text-4xl font-bold text-yellow-400">CHIẾN THẮNG!</h2>
+        <div class="bg-slate-800 p-8 rounded-3xl border-4 border-yellow-500 shadow-2xl">
+            <p class="text-2xl mb-4">Bạn đã giải cứu thành công Sư phụ Algo!</p>
+            <div class="inline-block bg-yellow-600 text-white p-4 rounded-lg font-bold">
+                HUY HIỆU: MASTER OF LOGIC
+            </div>
+        </div>
+        <button onclick="location.reload()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full">CHƠI LẠI</button>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        { q: "Thuật toán là gì?", a: ["Dãy chỉ dẫn rõ ràng, có trình tự để giải quyết vấn đề", "Một chương trình máy tính hoàn chỉnh", "Các hình vẽ mô tả công việc", "Kết quả nhận được sau nhiệm vụ"], correct: 0, stage: 1 },
+        { q: "Trong thuật toán, dữ liệu đầu vào được gọi là gì?", a: ["Output", "Process", "Input", "Diagram"], correct: 2, stage: 1 },
+        { q: "Trong sơ đồ khối, hình thoi biểu thị bước nào?", a: ["Bắt đầu / Kết thúc", "Bước xử lý tính toán", "Đầu vào / Đầu ra", "Bước kiểm tra điều kiện"], correct: 3, stage: 1 },
+        { q: "Có bao nhiêu cách chính để mô tả một thuật toán?", a: ["1 cách", "2 cách", "3 cách", "4 cách"], correct: 1, stage: 1 },
+        { q: "Tại sao trình tự các bước trong thuật toán lại rất quan trọng?", a: ["Vì máy tính chỉ đọc từ dưới lên", "Vì sai trình tự có thể không ra kết quả đúng", "Để sơ đồ khối đẹp hơn", "Vì mỗi bước tốn thời gian bằng nhau"], correct: 1, stage: 2 },
+        { q: "Trong sơ đồ khối, ý nghĩa của các mũi tên là gì?", a: ["Kết nối các hình cho đẹp", "Chỉ hướng thực hiện tiếp theo của các bước", "Cho biết dữ liệu quan trọng nhất", "Thể hiện thuật toán đã kết thúc"], correct: 1, stage: 2 },
+        { q: "Trong ví dụ gấp hình, 'tờ giấy hình vuông' là gì?", a: ["Đầu ra (Output)", "Các bước xử lý", "Đầu vào (Input)", "Điều kiện kiểm tra"], correct: 2, stage: 2 },
+        { q: "Đâu là thứ tự đúng của thuật toán 'Tính tổng a và b'?", a: ["Bắt đầu -> Nhập -> Tính -> Xuất -> Kết thúc", "Bắt đầu -> Tính -> Nhập -> Xuất -> Kết thúc", "Nhập -> Bắt đầu -> Tính -> Xuất -> Kết thúc", "Bắt đầu -> Nhập -> Xuất -> Tính -> Kết thúc"], correct: 0, stage: 3 },
+        { q: "Nếu quên bước 'Nghiền nát xoài' trong làm kem thì sao?", a: ["Vẫn tạo ra kem đúng tiêu chuẩn", "Thuật toán bị dừng ngay lập tức", "Kết quả đầu ra không đúng mong đợi", "Máy tính báo lỗi không nhận diện"], correct: 2, stage: 3 },
+        { q: "Tình huống 'Nếu mưa thì cất đồ' nên vẽ bằng hình gì?", a: ["Hình chữ nhật", "Hình thoi (rẽ nhánh Đúng/Sai)", "Hình elip", "Hình bình hành"], correct: 1, stage: 3 }
+    ];
+
+    let currentQ = 0;
+    let gemsCollected = 0;
+    let bossHP = 100;
+    let currentStage = 1;
+
+    function startGame() {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        const q = questions[currentQ];
+        
+        // Cập nhật Chặng
+        if (q.stage !== currentStage) {
+            currentStage = q.stage;
+            updateStageUI();
+        }
+
+        document.getElementById('question-text').innerText = q.q;
+        const grid = document.getElementById('choices-grid');
+        grid.innerHTML = '';
+
+        q.a.forEach((choice, index) => {
+            const btn = document.createElement('button');
+            btn.className = "btn-choice bg-slate-700 text-left p-4 rounded-xl border border-slate-600 hover:border-blue-400 font-medium";
+            btn.innerText = String.fromCharCode(65 + index) + ". " + choice;
+            btn.onclick = () => checkAnswer(index);
+            grid.appendChild(btn);
+        });
+
+        updateDialog("SƯ PHỤ ALGO", "Hãy suy nghĩ kỹ nhé các hiệp sĩ!", "algo");
+    }
+
+    function updateStageUI() {
+        const info = document.getElementById('stage-info');
+        if (currentStage === 1) info.innerText = "CHẶNG 1: CÁNH CỔNG NHẬN BIẾT";
+        else if (currentStage === 2) info.innerText = "CHẶNG 2: ĐẦM LẦY THÔNG HIỂU";
+        else {
+            info.innerText = "CHẶNG 3: ĐẤU TRƯỜNG SINH TỒN";
+            document.getElementById('boss-area').classList.remove('hidden');
+        }
+    }
+
+    function checkAnswer(idx) {
+        const q = questions[currentQ];
+        if (idx === q.correct) {
+            handleCorrect();
+        } else {
+            handleWrong();
+        }
+    }
+
+    function handleCorrect() {
+        if (currentStage === 1) {
+            addGem();
+            updateDialog("SƯ PHỤ ALGO", "Giỏi lắm! Một viên ngọc đã xuất hiện!", "algo");
+        } else if (currentStage === 2) {
+            updateDialog("HIỆP SĨ", "Nhảy qua tảng đá thành công! Ting ting!", "knight");
+        } else if (currentStage === 3) {
+            bossHP -= 34; // 3 câu stage 3 diệt boss
+            if (bossHP < 0) bossHP = 0;
+            updateBossHP();
+            updateDialog("HIỆP SĨ", "Đòn tấn công thuật toán cực mạnh!", "knight");
+        }
+
+        currentQ++;
+        if (currentQ < questions.length) {
+            setTimeout(loadQuestion, 1500);
+        } else {
+            setTimeout(winGame, 1500);
+        }
+    }
+
+    function handleWrong() {
+        document.getElementById('question-card').classList.add('shake');
+        setTimeout(() => document.getElementById('question-card').classList.remove('shake'), 500);
+        
+        updateDialog("QUÁI VẬT LỘN XỘN", "Hahaha! Sai rồi, ta sẽ làm mọi thứ rối tung lên!", "boss");
+    }
+
+    function addGem() {
+        gemsCollected++;
+        const container = document.getElementById('gems-container');
+        const gem = document.createElement('div');
+        const colors = ['text-red-400', 'text-blue-400', 'text-yellow-400', 'text-purple-400'];
+        gem.className = `w-6 h-6 ${colors[gemsCollected-1]} gem-glow`;
+        gem.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l-9 9 9 9 9-9-9-9z"/></svg>`;
+        container.appendChild(gem);
+    }
+
+    function updateBossHP() {
+        const inner = document.getElementById('boss-health-inner');
+        const text = document.getElementById('boss-hp-text');
+        inner.style.width = bossHP + "%";
+        text.innerText = `HP: ${Math.ceil(bossHP)}/100`;
+    }
+
+    function updateDialog(name, text, type) {
+        document.getElementById('char-name').innerText = name;
+        document.getElementById('char-text').innerText = text;
+        
+        const avatar = document.getElementById('char-avatar');
+        if (type === 'boss') {
+            avatar.innerHTML = `<svg viewBox="0 0 24 24" class="w-10 h-10 text-red-500" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 7v5l3 3"/></svg>`;
+            document.getElementById('char-name').className = "font-bold text-red-500 text-sm";
+        } else if (type === 'algo') {
+            avatar.innerHTML = `<svg viewBox="0 0 24 24" class="w-10 h-10 text-yellow-400" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M5 12h14M12 1l-3 3M12 23l3-3"/></svg>`;
+            document.getElementById('char-name').className = "font-bold text-yellow-400 text-sm";
+        } else {
+            avatar.innerHTML = `<svg viewBox="0 0 24 24" class="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+            document.getElementById('char-name').className = "font-bold text-blue-400 text-sm";
+        }
+    }
+
+    function winGame() {
+        document.getElementById('game-screen').classList.add('hidden');
+        document.getElementById('win-screen').classList.remove('hidden');
+    }
+</script>
+
+</body>
+</html>
